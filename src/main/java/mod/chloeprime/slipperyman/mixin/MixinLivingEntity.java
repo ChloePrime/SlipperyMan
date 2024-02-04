@@ -2,6 +2,7 @@ package mod.chloeprime.slipperyman.mixin;
 
 import mod.chloeprime.slipperyman.common.CommonProxy;
 import mod.chloeprime.slipperyman.common.SlipperyUtils;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -11,6 +12,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -149,6 +151,13 @@ public abstract class MixinLivingEntity extends Entity {
             return gravity * Mth.lerp(Math.abs(getDeltaMovement().y) / jumpStrength, 1, landGravityScale);
         }
         return gravity;
+    }
+
+    @Inject(method = "checkFallDamage", at = @At("HEAD"))
+    private void reduceFallDamage(double pY, boolean pOnGround, BlockState pState, BlockPos pPos, CallbackInfo ci) {
+        if (SlipperyUtils.isPlayer(this) && fallDistance > 3 && pOnGround) {
+            fallDistance /= 2;
+        }
     }
 
     public MixinLivingEntity(EntityType<?> pEntityType, Level pLevel) {
