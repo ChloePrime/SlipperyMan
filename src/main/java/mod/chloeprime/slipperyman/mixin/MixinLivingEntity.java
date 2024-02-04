@@ -8,8 +8,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,11 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
 public abstract class MixinLivingEntity extends Entity {
-
-    @Shadow public float xxa;
-
-    @Shadow public abstract double getAttributeValue(Attribute pAttribute);
-
     @Unique private Vec3 slipperyMan$capturedSpeedBeforeSpeedDown = Vec3.ZERO;
     @Unique private double slipperyMan$capturedJumpStrength;
 
@@ -101,7 +94,7 @@ public abstract class MixinLivingEntity extends Entity {
             } else {
                 speedZ = Math.abs(motionH.dot(front) / front.length());
             }
-            if (speedZ > getAttributeValue(Attributes.MOVEMENT_SPEED)) {
+            if (speedZ > this.speed) {
                 moveInput = moveInput.with(Direction.Axis.Z, 0);
             }
 
@@ -110,7 +103,7 @@ public abstract class MixinLivingEntity extends Entity {
             } else {
                 speedX = Math.abs(motionH.dot(right) / right.length());
             }
-            if (speedX > getAttributeValue(Attributes.MOVEMENT_SPEED)) {
+            if (speedX > this.speed) {
                 moveInput = moveInput.with(Direction.Axis.X, 0);
             }
         }
@@ -154,7 +147,18 @@ public abstract class MixinLivingEntity extends Entity {
     }
 
     @Inject(method = "checkFallDamage", at = @At("HEAD"))
-    private void reduceFallDamage(double pY, boolean pOnGround, BlockState pState, BlockPos pPos, CallbackInfo ci) {
+    private void limitSpeedOnFallAndReduceFallDamage(double pY, boolean pOnGround, BlockState pState, BlockPos pPos, CallbackInfo ci) {
+        // limitSpeedOnFall
+        if (pOnGround && fallDistance > 0) {
+            var motion = getDeltaMovement();
+            var motionH = motion.with(Direction.Axis.Y, 0);
+            if (speed > 1e-4 && motionH.lengthSqr() > speed * speed) {
+                var newMotionH = motionH.normalize().scale(speed);
+                setDeltaMovement(new Vec3(newMotionH.x, motion.y, newMotionH.z));
+            }
+        }
+
+        // reduceFallDamage
         if (SlipperyUtils.isPlayer(this) && fallDistance > 3 && pOnGround) {
             fallDistance /= 2;
         }
@@ -165,7 +169,9 @@ public abstract class MixinLivingEntity extends Entity {
     }
 
 
+    @Shadow public float xxa;
     @Shadow public float zza;
+    @Shadow private float speed;
     @Shadow public abstract void setDiscardFriction(boolean pDiscardFriction);
     @Shadow public abstract boolean shouldDiscardFriction();
 }
