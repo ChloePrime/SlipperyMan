@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "mod.chloeprime.slipperyman.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "slippery_man.refmap.json",
+  "mixins": [
+    "MixinLivingEntity",
+    "MixinPlayer"
+  ],
+  "client": [
+    "client.MixinOptions"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
