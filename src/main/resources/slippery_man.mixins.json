@@ -9,7 +9,7 @@
     "MixinPlayer"
   ],
   "client": [
-    "client.MixinOptions"
+    "client.MixinLocalPlayer"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,5 +1,6 @@
 package mod.chloeprime.slipperyman.mixin;
 
+import mod.chloeprime.slipperyman.common.CommonProxy;
 import mod.chloeprime.slipperyman.common.SlipperyUtils;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -12,7 +13,7 @@ public abstract class MixinPlayer extends LivingEntity {
     @Override
     @SuppressWarnings("deprecation")
     public float getStepHeight() {
-        if (!SlipperyUtils.isPlayer(this)) {
+        if (!SlipperyUtils.isPlayer(this) || !CommonProxy.canStepUp(this)) {
             return super.getStepHeight();
         }
         // 蹲下时会无视其他模组的 stepHeight
