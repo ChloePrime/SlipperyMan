@@ -19,6 +19,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import static java.lang.Math.abs;
+
 @Mixin(LivingEntity.class)
 public abstract class MixinLivingEntity extends Entity {
     @Shadow public abstract float getSpeed();
@@ -42,8 +44,8 @@ public abstract class MixinLivingEntity extends Entity {
 
             var motion = getDeltaMovement();
             var hMotion = motion.with(Direction.Axis.Y, 0);
-            var zSpeed = Math.abs(hMotion.dot(front));
-            var xSpeed = Math.abs(hMotion.dot(left));
+            var zSpeed = abs(hMotion.dot(front));
+            var xSpeed = abs(hMotion.dot(left));
             var newZMotion = front.scale(zSpeed * zza);
             var newXMotion = left.scale(xSpeed * xxa);
             setDeltaMovement(new Vec3(newXMotion.x + newZMotion.x, motion.y, newXMotion.z + newZMotion.z));
@@ -66,7 +68,8 @@ public abstract class MixinLivingEntity extends Entity {
     private void doNotSlowDownWhenInAir(Vec3 pTravelVector, CallbackInfo ci) {
         SlipperyUtils.ifFallingPlayer(this, player -> {
             slipperyMan$discardFrictionBefore = shouldDiscardFriction();
-            setDiscardFriction(!isOnGround());
+            var slippery = !isOnGround() && (abs(player.xxa) > 1e-3 || abs(player.zza) > 1e-3);
+            setDiscardFriction(slippery);
         });
     }
 
@@ -106,7 +109,7 @@ public abstract class MixinLivingEntity extends Entity {
             } else {
                 speedZ = motionH.dot(front) / front.length();
             }
-            if (Math.abs(speedZ) > speed && Mth.sign(moveInput.z) == Mth.sign(speedZ)) {
+            if (abs(speedZ) > speed && Mth.sign(moveInput.z) == Mth.sign(speedZ)) {
                 moveInput = moveInput.with(Direction.Axis.Z, 0);
             }
 
@@ -115,7 +118,7 @@ public abstract class MixinLivingEntity extends Entity {
             } else {
                 speedX = motionH.dot(right) / right.length();
             }
-            if (Math.abs(speedX) > speed && Mth.sign(moveInput.x) + Mth.sign(speedX) == 0) {
+            if (abs(speedX) > speed && Mth.sign(moveInput.x) + Mth.sign(speedX) == 0) {
                 moveInput = moveInput.with(Direction.Axis.X, 0);
             }
         }
@@ -150,10 +153,10 @@ public abstract class MixinLivingEntity extends Entity {
         if (CommonProxy.isJumping(player)) {
             var landGravityScale = (player.isSprinting() ? 0.2 : 0.25);
             var jumpStrength = slipperyMan$capturedJumpStrength;
-            if (Math.abs(jumpStrength) < 1e-7) {
+            if (abs(jumpStrength) < 1e-7) {
                 return gravity * landGravityScale;
             }
-            return gravity * Mth.lerp(Math.abs(getDeltaMovement().y) / jumpStrength, 1, landGravityScale);
+            return gravity * Mth.lerp(abs(getDeltaMovement().y) / jumpStrength, 1, landGravityScale);
         }
         return gravity;
     }
