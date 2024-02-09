@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -20,6 +21,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
 public abstract class MixinLivingEntity extends Entity {
+    @Shadow public abstract float getSpeed();
+
     @Unique private Vec3 slipperyMan$capturedSpeedBeforeSpeedDown = Vec3.ZERO;
     @Unique private double slipperyMan$capturedJumpStrength;
 
@@ -31,18 +34,18 @@ public abstract class MixinLivingEntity extends Entity {
     @Inject(method = "jumpFromGround", at = @At("HEAD"))
     private void faceTowardsLookOnJump(CallbackInfo ci) {
         SlipperyUtils.ifPlayer(this, p -> {
-            var localPZ = getLookAngle().with(Direction.Axis.Y, 0).normalize();
-            if (localPZ == Vec3.ZERO) {
+            var front = slipperyMan$getFront();
+            if (front == Vec3.ZERO) {
                 return;
             }
-            var localPX = SlipperyUtils.UP.cross(localPZ);
+            var left = SlipperyUtils.UP.cross(front);
 
             var motion = getDeltaMovement();
             var hMotion = motion.with(Direction.Axis.Y, 0);
-            var zSpeed = Math.abs(hMotion.dot(localPZ));
-            var xSpeed = Math.abs(hMotion.dot(localPX));
-            var newZMotion = localPZ.scale(zSpeed * zza);
-            var newXMotion = localPX.scale(xSpeed * xxa);
+            var zSpeed = Math.abs(hMotion.dot(front));
+            var xSpeed = Math.abs(hMotion.dot(left));
+            var newZMotion = front.scale(zSpeed * zza);
+            var newXMotion = left.scale(xSpeed * xxa);
             setDeltaMovement(new Vec3(newXMotion.x + newZMotion.x, motion.y, newXMotion.z + newZMotion.z));
         });
     }
@@ -74,6 +77,14 @@ public abstract class MixinLivingEntity extends Entity {
         });
     }
 
+    @Redirect(
+            method = "getFrictionInfluencedSpeed",
+            at = @At(value = "FIELD", opcode = Opcodes.GETFIELD, target = "Lnet/minecraft/world/entity/LivingEntity;onGround:Z")
+    )
+    private boolean doNotNerfInAirControl(LivingEntity self) {
+        return self instanceof Player player ? !player.getAbilities().flying : self.isOnGround();
+    }
+
     @ModifyArg(
             method = "handleRelativeFrictionAndCalculateMovement",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;moveRelative(FLnet/minecraft/world/phys/Vec3;)V"),
@@ -84,26 +95,27 @@ public abstract class MixinLivingEntity extends Entity {
             if (!SlipperyUtils.isFallingPlayer(player)) {
                 return moveInput;
             }
-            var front = getLookAngle().with(Direction.Axis.Y, 0);
-            var right = SlipperyUtils.UP.cross(front);
+            var front = slipperyMan$getFront();
+            var right = front.cross(SlipperyUtils.UP);
+            var speed = getSpeed();
             var motionH = getDeltaMovement().with(Direction.Axis.Y, 0);
             double speedX, speedZ;
 
             if (front.lengthSqr() < 1e-8) {
                 speedZ = motionH.length();
             } else {
-                speedZ = Math.abs(motionH.dot(front) / front.length());
+                speedZ = motionH.dot(front) / front.length();
             }
-            if (speedZ > this.speed) {
+            if (Math.abs(speedZ) > speed && Mth.sign(moveInput.z) == Mth.sign(speedZ)) {
                 moveInput = moveInput.with(Direction.Axis.Z, 0);
             }
 
             if (right.lengthSqr() < 1e-8) {
                 speedX = motionH.length();
             } else {
-                speedX = Math.abs(motionH.dot(right) / right.length());
+                speedX = motionH.dot(right) / right.length();
             }
-            if (speedX > this.speed) {
+            if (Math.abs(speedX) > speed && Mth.sign(moveInput.x) + Mth.sign(speedX) == 0) {
                 moveInput = moveInput.with(Direction.Axis.X, 0);
             }
         }
@@ -168,6 +180,11 @@ public abstract class MixinLivingEntity extends Entity {
         super(pEntityType, pLevel);
     }
 
+    @Unique
+    private Vec3 slipperyMan$getFront() {
+        var yRot = getYRot();
+        return new Vec3(-Mth.sin((float)(Math.toRadians(yRot))), 0, Mth.cos((float)(Math.toRadians(yRot))));
+    }
 
     @Shadow public float xxa;
     @Shadow public float zza;
