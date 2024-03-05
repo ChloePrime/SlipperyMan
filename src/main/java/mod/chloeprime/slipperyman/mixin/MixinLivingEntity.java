@@ -30,7 +30,7 @@ public abstract class MixinLivingEntity extends Entity {
 
     @ModifyArg(method = "<clinit>", at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/entity/ai/attributes/AttributeModifier;<init>(Ljava/util/UUID;Ljava/lang/String;DLnet/minecraft/world/entity/ai/attributes/AttributeModifier$Operation;)V"))
     private static double modifySprintBoost(double original) {
-        return 1.0;
+        return 0.5;
     }
 
     @Inject(method = "jumpFromGround", at = @At("HEAD"))
