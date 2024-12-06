@@ -4,7 +4,7 @@ import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 
-@Mixin(value = LocalPlayer.class, priority = 0)
+@Mixin(value = LocalPlayer.class, priority = Integer.MAX_VALUE)
 public class MixinLocalPlayer {
     /**
      * @author ChloePrime

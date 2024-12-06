@@ -1,5 +1,7 @@
 package mod.chloeprime.slipperyman.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import mod.chloeprime.slipperyman.common.CommonProxy;
 import mod.chloeprime.slipperyman.common.SlipperyUtils;
 import net.minecraft.core.BlockPos;
@@ -8,29 +10,34 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import org.objectweb.asm.Opcodes;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.UUID;
+
 import static java.lang.Math.abs;
 
 @Mixin(LivingEntity.class)
 public abstract class MixinLivingEntity extends Entity {
-    @Shadow public abstract float getSpeed();
-
     @Unique private Vec3 slipperyMan$capturedSpeedBeforeSpeedDown = Vec3.ZERO;
     @Unique private double slipperyMan$capturedJumpStrength;
 
-    @ModifyArg(method = "<clinit>", at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/entity/ai/attributes/AttributeModifier;<init>(Ljava/util/UUID;Ljava/lang/String;DLnet/minecraft/world/entity/ai/attributes/AttributeModifier$Operation;)V"))
-    private static double modifySprintBoost(double original) {
-        return 0.5;
+    @WrapOperation(
+            method = "<clinit>",
+            at = @At(value = "NEW", target = "(Ljava/util/UUID;Ljava/lang/String;DLnet/minecraft/world/entity/ai/attributes/AttributeModifier$Operation;)Lnet/minecraft/world/entity/ai/attributes/AttributeModifier;"))
+    private static AttributeModifier modifySprintBoost(UUID id, String name, double givenAmount, AttributeModifier.Operation operation, Operation<AttributeModifier> original) {
+        var amount = SPEED_MODIFIER_SPRINTING_UUID.equals(id) ? 0.5 : givenAmount;
+        return original.call(id, name, amount, operation);
     }
 
     @Inject(method = "jumpFromGround", at = @At("HEAD"))
@@ -80,20 +87,24 @@ public abstract class MixinLivingEntity extends Entity {
         });
     }
 
-    @Redirect(
+    @WrapOperation(
             method = "getFrictionInfluencedSpeed",
-            at = @At(value = "INVOKE", opcode = Opcodes.GETFIELD, target = "Lnet/minecraft/world/entity/LivingEntity;onGround()Z")
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;onGround()Z")
     )
-    private boolean doNotNerfInAirControl(LivingEntity self) {
-        return self instanceof Player player ? !player.getAbilities().flying : self.onGround();
+    private boolean doNotNerfInAirControl(LivingEntity self, Operation<Boolean> original) {
+        return self instanceof Player player ? !player.getAbilities().flying : original.call(self);
     }
 
-    @ModifyArg(
+    @WrapOperation(
             method = "handleRelativeFrictionAndCalculateMovement",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;moveRelative(FLnet/minecraft/world/phys/Vec3;)V"),
-            index = 1
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;moveRelative(FLnet/minecraft/world/phys/Vec3;)V")
     )
-    private Vec3 doNotAccelerateInfinitely(Vec3 moveInput) {
+    private void doNotAccelerateInfinitely(LivingEntity instance, float speed, Vec3 moveInput, Operation<Void> original) {
+        original.call(instance, speed, slippery_man$adjustMoveInput(moveInput));
+    }
+
+    @Unique
+    private Vec3 slippery_man$adjustMoveInput(Vec3 moveInput) {
         if ((Object) this instanceof Player player) {
             if (!SlipperyUtils.isFallingPlayer(player)) {
                 return moveInput;
@@ -138,12 +149,18 @@ public abstract class MixinLivingEntity extends Entity {
         slipperyMan$capturedJumpStrength = getDeltaMovement().y;
     }
 
-    @ModifyVariable(
+    @WrapOperation(
             method = "travel",
-            at = @At(value = "INVOKE_ASSIGN", ordinal = 0, target = "Lnet/minecraft/world/entity/ai/attributes/AttributeInstance;getValue()D")
+            at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/entity/ai/attributes/AttributeInstance;getValue()D")
     )
+    private double modifyGravity(AttributeInstance instance, Operation<Double> original) {
+        return slippery_man$modifyGravity(original.call(instance));
+    }
+
+
     @SuppressWarnings("ConstantValue")
-    private double modifyGravity(double gravity) {
+    @Unique
+    private double slippery_man$modifyGravity(double gravity) {
         if (!((Object) this instanceof Player player)) {
             return gravity;
         }
@@ -194,4 +211,6 @@ public abstract class MixinLivingEntity extends Entity {
     @Shadow private float speed;
     @Shadow public abstract void setDiscardFriction(boolean pDiscardFriction);
     @Shadow public abstract boolean shouldDiscardFriction();
+    @Shadow @Final private static UUID SPEED_MODIFIER_SPRINTING_UUID;
+    @Shadow public abstract float getSpeed();
 }
