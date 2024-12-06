@@ -68,7 +68,7 @@ public abstract class MixinLivingEntity extends Entity {
     private void doNotSlowDownWhenInAir(Vec3 pTravelVector, CallbackInfo ci) {
         SlipperyUtils.ifFallingPlayer(this, player -> {
             slipperyMan$discardFrictionBefore = shouldDiscardFriction();
-            var slippery = !isOnGround() && (abs(player.xxa) > 1e-3 || abs(player.zza) > 1e-3);
+            var slippery = !onGround() && (abs(player.xxa) > 1e-3 || abs(player.zza) > 1e-3);
             setDiscardFriction(slippery);
         });
     }
@@ -82,10 +82,10 @@ public abstract class MixinLivingEntity extends Entity {
 
     @Redirect(
             method = "getFrictionInfluencedSpeed",
-            at = @At(value = "FIELD", opcode = Opcodes.GETFIELD, target = "Lnet/minecraft/world/entity/LivingEntity;onGround:Z")
+            at = @At(value = "INVOKE", opcode = Opcodes.GETFIELD, target = "Lnet/minecraft/world/entity/LivingEntity;onGround()Z")
     )
     private boolean doNotNerfInAirControl(LivingEntity self) {
-        return self instanceof Player player ? !player.getAbilities().flying : self.isOnGround();
+        return self instanceof Player player ? !player.getAbilities().flying : self.onGround();
     }
 
     @ModifyArg(

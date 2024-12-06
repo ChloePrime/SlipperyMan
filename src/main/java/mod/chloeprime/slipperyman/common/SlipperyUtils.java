@@ -20,7 +20,7 @@ public class SlipperyUtils {
     }
 
     public static boolean isFallingPlayer(Entity entity) {
-        return entity instanceof Player player && !player.isOnGround() && !player.getAbilities().flying;
+        return entity instanceof Player player && !player.onGround() && !player.getAbilities().flying;
     }
 
     public static void ifPlayer(Entity entity, Consumer<Player> action) {
@@ -30,12 +30,12 @@ public class SlipperyUtils {
     }
 
     public static void ifFallingPlayer(Entity entity, Consumer<Player> action) {
-        if (entity instanceof Player player && !player.isOnGround() && !player.getAbilities().flying) {
+        if (entity instanceof Player player && !player.onGround() && !player.getAbilities().flying) {
             action.accept(player);
         }
     }
 
     public static boolean isOnGroundPlayer(Entity entity) {
-        return entity instanceof Player player && player.isOnGround();
+        return entity instanceof Player player && player.onGround();
     }
 }

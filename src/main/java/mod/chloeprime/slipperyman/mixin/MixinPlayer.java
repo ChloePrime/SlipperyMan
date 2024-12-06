@@ -11,24 +11,23 @@ import org.spongepowered.asm.mixin.Mixin;
 @Mixin(Player.class)
 public abstract class MixinPlayer extends LivingEntity {
     @Override
-    @SuppressWarnings("deprecation")
     public float getStepHeight() {
         if (!SlipperyUtils.isPlayer(this) || !CommonProxy.canStepUp(this)) {
             return super.getStepHeight();
         }
+        float vanillaStep = maxUpStep();
         // 蹲下时会无视其他模组的 stepHeight
         if (isShiftKeyDown()) {
-            return maxUpStep;
+            return vanillaStep;
         }
-        var recordedStepHeight = maxUpStep;
-        if (recordedStepHeight >= 1) {
+        if (vanillaStep >= 1) {
             return super.getStepHeight();
         }
         try {
-            maxUpStep = isShiftKeyDown() ? 0.6F : 1F;
+            super.setMaxUpStep(isShiftKeyDown() ? 0.6F : 1F);
             return super.getStepHeight();
         } finally {
-            maxUpStep = recordedStepHeight;
+            super.setMaxUpStep(vanillaStep);
         }
     }
 
